@@ -21,21 +21,51 @@
     .header {
       background: white;
       border-bottom: 1px solid #e5e7eb;
-      padding: 1.25rem 1.5rem;
+      padding: 1rem 1.5rem;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      justify-content: space-between;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
       position: sticky;
       top: 0;
       z-index: 10;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
-    .header h1 {
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .header-left span { font-size: 1.75rem; }
+    .header-left h1 {
       font-size: 1.5rem;
       font-weight: 700;
       color: #111827;
     }
-    .header span { font-size: 1.75rem; }
+    .lang-switch {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .lang-switch button {
+      background: none;
+      border: 1px solid #d1d5db;
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #4b5563;
+      transition: all 0.2s;
+    }
+    .lang-switch button.active {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+    .lang-switch button:hover:not(.active) {
+      background: #f3f4f6;
+    }
 
     .main-content {
       flex: 1;
@@ -150,7 +180,8 @@
     }
 
     @media (max-width: 640px) {
-      .header h1 { font-size: 1.25rem; }
+      .header { flex-direction: column; align-items: flex-start; }
+      .header-left h1 { font-size: 1.25rem; }
       .total-amount { font-size: 1.5rem; }
       .total-box { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
     }
@@ -158,19 +189,25 @@
 </head>
 <body>
   <header class="header">
-    <span>💰</span>
-    <h1>Bill Tracker</h1>
+    <div class="header-left">
+      <span>💰</span>
+      <h1 id="main-title">Bill Tracker</h1>
+    </div>
+    <div class="lang-switch">
+      <button id="btn-en" class="active">EN</button>
+      <button id="btn-es">ES</button>
+    </div>
   </header>
 
   <main class="main-content">
     <div id="bills-container" class="bills-container">
-      <div class="loading">Loading bills...</div>
+      <div class="loading" id="loading-msg">Loading bills...</div>
     </div>
     <div id="total-section"></div>
   </main>
 
-  <footer>
-    All amounts in BAM &middot; Powered by Bill Tracker
+  <footer id="footer-text">
+    All amounts in BAM · Powered by Bill Tracker
   </footer>
 
   <script>
@@ -180,13 +217,62 @@
 
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+      // --- TRANSLATIONS ---
+      const translations = {
+        en: {
+          title: 'Bill Tracker',
+          loading: 'Loading bills...',
+          noBills: '📭 No bills have been added yet.',
+          error: '⚠️ Error loading bills. Please try again later.',
+          totalLabel: 'Total',
+          attachment: '📎 View attachment',
+          footer: 'All amounts in BAM · Powered by Bill Tracker'
+        },
+        es: {
+          title: 'Registro de Facturas',
+          loading: 'Cargando facturas...',
+          noBills: '📭 No se han añadido facturas todavía.',
+          error: '⚠️ Error al cargar facturas. Inténtalo de nuevo más tarde.',
+          totalLabel: 'Total',
+          attachment: '📎 Ver adjunto',
+          footer: 'Todos los montos en BAM · Desarrollado por Bill Tracker'
+        }
+      };
+
+      // --- LANGUAGE LOGIC ---
+      let currentLang = localStorage.getItem('bill-tracker-lang') || 'en';
+      const btnEn = document.getElementById('btn-en');
+      const btnEs = document.getElementById('btn-es');
+
+      function setLang(lang) {
+        currentLang = lang;
+        localStorage.setItem('bill-tracker-lang', lang);
+        document.documentElement.lang = lang;
+        document.getElementById('main-title').textContent = translations[lang].title;
+        document.getElementById('footer-text').textContent = translations[lang].footer;
+        // Update active button
+        btnEn.classList.toggle('active', lang === 'en');
+        btnEs.classList.toggle('active', lang === 'es');
+        // Re-render bills with new language
+        loadBills();
+      }
+
+      btnEn.addEventListener('click', () => setLang('en'));
+      btnEs.addEventListener('click', () => setLang('es'));
+
+      // Set initial language
+      setLang(currentLang);
+
+      // --- HELPER ---
       function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
       }
 
+      // --- LOAD BILLS ---
       async function loadBills() {
+        const t = translations[currentLang];
         const { data: bills, error } = await supabase
           .from('bills')
           .select('*')
@@ -196,13 +282,13 @@
         const totalSection = document.getElementById('total-section');
 
         if (error) {
-          container.innerHTML = '<div class="empty-state"><p>⚠️ Error loading bills. Please try again later.</p></div>';
+          container.innerHTML = `<div class="empty-state"><p>${t.error}</p></div>`;
           totalSection.innerHTML = '';
           return;
         }
 
         if (!bills || bills.length === 0) {
-          container.innerHTML = '<div class="empty-state"><p>📭 No bills have been added yet.</p></div>';
+          container.innerHTML = `<div class="empty-state"><p>${t.noBills}</p></div>`;
           totalSection.innerHTML = '';
           return;
         }
@@ -219,7 +305,7 @@
               ${bill.image_url ? `
                 <div class="bill-attachment">
                   <a href="${bill.image_url}" target="_blank">
-                    📎 View attachment
+                    ${t.attachment}
                   </a>
                 </div>
               ` : ''}
@@ -229,13 +315,11 @@
 
         totalSection.innerHTML = `
           <div class="total-box">
-            <span class="total-label">Total</span>
+            <span class="total-label">${t.totalLabel}</span>
             <span class="total-amount">${total.toFixed(2)} BAM</span>
           </div>
         `;
       }
-
-      loadBills();
     })();
   </script>
 </body>
