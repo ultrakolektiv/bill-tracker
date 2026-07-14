@@ -217,7 +217,7 @@
 
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      // --- TRANSLATIONS ---
+      // Prevod interfejsa (staticki)
       const translations = {
         en: {
           title: 'Bill Tracker',
@@ -239,37 +239,36 @@
         }
       };
 
-      // --- DICTIONARY FOR BILL NAME TRANSLATION (English → Spanish) ---
-      const nameTranslations = {
-        'electricity': 'electricidad',
-        'water': 'agua',
-        'gas': 'gas',
-        'internet': 'internet',
-        'phone': 'teléfono',
-        'rent': 'alquiler',
-        'insurance': 'seguro',
-        'tax': 'impuesto',
-        'salary': 'salario',
-        'groceries': 'comestibles',
-        'heating': 'calefacción',
-        'maintenance': 'mantenimiento',
-        'subscription': 'suscripción',
-        'transport': 'transporte',
-        // dodajte nove reči po potrebi
-      };
+      // Cache za prevode naziva (da ne zovemo API više puta za isti tekst)
+      const translationCache = {};
 
-      function translateName(name, lang) {
-        if (lang === 'en') return name; // engleski – ostavi original
-        const lower = name.toLowerCase().trim();
-        return nameTranslations[lower] || name; // ako nema prevoda, ostavi original
+      async function translateText(text, targetLang) {
+        if (targetLang === 'en') return text; // engleski – ostavi original
+        const cacheKey = `${text}_${targetLang}`;
+        if (translationCache[cacheKey] !== undefined) {
+          return translationCache[cacheKey];
+        }
+        try {
+          // Besplatan MyMemory API (5000 karaktera dnevno bez ključa)
+          const response = await fetch(
+            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`
+          );
+          const data = await response.json();
+          const translated = data.responseData.translatedText || text;
+          translationCache[cacheKey] = translated;
+          return translated;
+        } catch (err) {
+          console.warn('Translation failed for', text, err);
+          return text; // ako API padne, prikaži original
+        }
       }
 
-      // --- LANGUAGE LOGIC ---
+      // --- Jezička logika ---
       let currentLang = localStorage.getItem('bill-tracker-lang') || 'en';
       const btnEn = document.getElementById('btn-en');
       const btnEs = document.getElementById('btn-es');
 
-      function setLang(lang) {
+      async function setLang(lang) {
         currentLang = lang;
         localStorage.setItem('bill-tracker-lang', lang);
         document.documentElement.lang = lang;
@@ -277,13 +276,12 @@
         document.getElementById('footer-text').textContent = translations[lang].footer;
         btnEn.classList.toggle('active', lang === 'en');
         btnEs.classList.toggle('active', lang === 'es');
-        loadBills();
+        // Ponovo učitaj i prevedi sve nazive
+        await loadBills();
       }
 
       btnEn.addEventListener('click', () => setLang('en'));
       btnEs.addEventListener('click', () => setLang('es'));
-
-      setLang(currentLang);
 
       function escapeHtml(text) {
         const div = document.createElement('div');
@@ -313,14 +311,14 @@
           return;
         }
 
+        // Prvo prikaži sa originalnim nazivima (brzo), sa data-original atributom
         let total = 0;
         container.innerHTML = bills.map(bill => {
           const amount = parseFloat(bill.amount);
           total += amount;
-          const displayName = translateName(bill.name, currentLang);
           return `
             <div class="bill-card">
-              <div class="bill-name">${escapeHtml(displayName)}</div>
+              <div class="bill-name" data-original="${escapeHtml(bill.name)}">${escapeHtml(bill.name)}</div>
               <div class="bill-month">${escapeHtml(bill.month || '')}</div>
               <div class="bill-amount">${amount.toFixed(2)} BAM</div>
               ${bill.image_url ? `
@@ -340,7 +338,21 @@
             <span class="total-amount">${total.toFixed(2)} BAM</span>
           </div>
         `;
+
+        // Ako je izabran španski, automatski prevedi sve nazive
+        if (currentLang === 'es') {
+          const nameElements = document.querySelectorAll('.bill-name');
+          for (const el of nameElements) {
+            const original = el.getAttribute('data-original');
+            if (!original) continue;
+            const translated = await translateText(original, 'es');
+            el.textContent = translated;
+          }
+        }
       }
+
+      // Inicijalno učitavanje
+      setLang(currentLang);
     })();
   </script>
 </body>
