@@ -37,7 +37,6 @@
       align-items: center;
       gap: 0.75rem;
     }
-    .header-left span { font-size: 1.75rem; }
     .header-left h1 {
       font-size: 1.5rem;
       font-weight: 700;
@@ -154,7 +153,7 @@
       border-top: 4px double #10b981;  /* dvostruka linija */
       position: relative;
     }
-    /* dodatna tanka linija ispod dvostruke za još veću dubinu */
+    /* dodatna tanka linija ispod dvostruke */
     .total-box::before {
       content: '';
       position: absolute;
@@ -206,8 +205,7 @@
 <body>
   <header class="header">
     <div class="header-left">
-      <span>💰</span>
-      <h1 id="main-title">Bill Tracker</h1>
+      <h1 id="main-title">Bill Tracker - Ricardo Caraballo</h1>
     </div>
     <div class="lang-switch">
       <button id="btn-en" class="active">EN</button>
@@ -235,7 +233,7 @@
 
       const translations = {
         en: {
-          title: 'Bill Tracker',
+          title: 'Bill Tracker - Ricardo Caraballo',
           loading: 'Loading bills...',
           noBills: '📭 No bills have been added yet.',
           error: '⚠️ Error loading bills. Please try again later.',
@@ -244,7 +242,7 @@
           footer: 'All amounts in BAM · Powered by Bill Tracker'
         },
         es: {
-          title: 'Registro de Facturas',
+          title: 'Registro de Facturas - Ricardo Caraballo',
           loading: 'Cargando facturas...',
           noBills: '📭 No se han añadido facturas todavía.',
           error: '⚠️ Error al cargar facturas. Inténtalo de nuevo más tarde.',
