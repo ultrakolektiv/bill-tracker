@@ -239,6 +239,31 @@
         }
       };
 
+      // --- DICTIONARY FOR BILL NAME TRANSLATION (English → Spanish) ---
+      const nameTranslations = {
+        'electricity': 'electricidad',
+        'water': 'agua',
+        'gas': 'gas',
+        'internet': 'internet',
+        'phone': 'teléfono',
+        'rent': 'alquiler',
+        'insurance': 'seguro',
+        'tax': 'impuesto',
+        'salary': 'salario',
+        'groceries': 'comestibles',
+        'heating': 'calefacción',
+        'maintenance': 'mantenimiento',
+        'subscription': 'suscripción',
+        'transport': 'transporte',
+        // dodajte nove reči po potrebi
+      };
+
+      function translateName(name, lang) {
+        if (lang === 'en') return name; // engleski – ostavi original
+        const lower = name.toLowerCase().trim();
+        return nameTranslations[lower] || name; // ako nema prevoda, ostavi original
+      }
+
       // --- LANGUAGE LOGIC ---
       let currentLang = localStorage.getItem('bill-tracker-lang') || 'en';
       const btnEn = document.getElementById('btn-en');
@@ -250,27 +275,22 @@
         document.documentElement.lang = lang;
         document.getElementById('main-title').textContent = translations[lang].title;
         document.getElementById('footer-text').textContent = translations[lang].footer;
-        // Update active button
         btnEn.classList.toggle('active', lang === 'en');
         btnEs.classList.toggle('active', lang === 'es');
-        // Re-render bills with new language
         loadBills();
       }
 
       btnEn.addEventListener('click', () => setLang('en'));
       btnEs.addEventListener('click', () => setLang('es'));
 
-      // Set initial language
       setLang(currentLang);
 
-      // --- HELPER ---
       function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
       }
 
-      // --- LOAD BILLS ---
       async function loadBills() {
         const t = translations[currentLang];
         const { data: bills, error } = await supabase
@@ -297,9 +317,10 @@
         container.innerHTML = bills.map(bill => {
           const amount = parseFloat(bill.amount);
           total += amount;
+          const displayName = translateName(bill.name, currentLang);
           return `
             <div class="bill-card">
-              <div class="bill-name">${escapeHtml(bill.name)}</div>
+              <div class="bill-name">${escapeHtml(displayName)}</div>
               <div class="bill-month">${escapeHtml(bill.month || '')}</div>
               <div class="bill-amount">${amount.toFixed(2)} BAM</div>
               ${bill.image_url ? `
