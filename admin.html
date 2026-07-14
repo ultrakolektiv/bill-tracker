@@ -16,7 +16,7 @@
 </head>
 <body>
   <div class="logout">
-    <button onclick="logout()">Logout</button>
+    <button id="logoutBtn">Logout</button>
   </div>
   <h1>Admin Panel</h1>
 
@@ -33,149 +33,155 @@
   <div style="text-align:right; font-weight:bold; font-size:1.2rem;" id="total">Total: $0.00</div>
 
   <script>
-    const SUPABASE_URL = 'https://msxcopwzxiogblrowxlf.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_PklVkBCMvIIUU1GA6vhGAw__QchugHT';
+    (function() {
+      const SUPABASE_URL = 'https://msxcopwzxiogblrowxlf.supabase.co';
+      const SUPABASE_ANON_KEY = 'sb_publishable_PklVkBCMvIIUU1GA6vhGAw__QchugHT';
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      // Create client inside the IIFE so it's not global
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Provera da li je korisnik ulogovan
-    async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        showLogin();
-        return false;
-      }
-      return true;
-    }
-
-    // Login forma
-    function showLogin() {
-      document.body.innerHTML = `
-        <div style="max-width:400px; margin:2rem auto;">
-          <h1>Admin Login</h1>
-          <form id="login-form">
-            <input type="email" id="email" placeholder="Email" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">Sign In</button>
-          </form>
-          <p id="error" style="color:red;"></p>
-        </div>
-      `;
-      document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          document.getElementById('error').textContent = error.message;
-        } else {
-          window.location.reload();
-        }
-      });
-    }
-
-    async function logout() {
-      await supabase.auth.signOut();
-      window.location.reload();
-    }
-
-    async function loadBills() {
-      const { data: bills, error } = await supabase
-        .from('bills')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      const container = document.getElementById('bills-container');
-      const totalEl = document.getElementById('total');
-
-      if (error) {
-        container.innerHTML = '<p>Error loading bills.</p>';
-        return;
+      // HTML escaping
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
       }
 
-      if (!bills || bills.length === 0) {
-        container.innerHTML = '<p>No bills yet.</p>';
-        totalEl.textContent = 'Total: $0.00';
-        return;
-      }
-
-      let total = 0;
-      container.innerHTML = bills.map(bill => {
-        const amount = parseFloat(bill.amount);
-        total += amount;
-        return `
-          <div class="bill">
-            <div>
-              <strong>${escapeHtml(bill.name)}</strong><br>
-              $${amount.toFixed(2)}
-              ${bill.image_url ? `<br><a href="${bill.image_url}" target="_blank">Attachment</a>` : ''}
-            </div>
-            <button onclick="deleteBill(${bill.id})" style="background:red; color:white; border:none; padding:0.3rem 0.6rem; cursor:pointer; width:auto;">Delete</button>
-          </div>
-        `;
-      }).join('');
-
-      totalEl.textContent = `Total: $${total.toFixed(2)}`;
-    }
-
-    async function deleteBill(id) {
-      if (!confirm('Delete this bill?')) return;
-      await supabase.from('bills').delete().eq('id', id);
-      loadBills();
-    }
-
-    document.getElementById('add-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('name').value.trim();
-      const amount = parseFloat(document.getElementById('amount').value);
-      const fileInput = document.getElementById('file');
-      const file = fileInput.files[0];
-      let imageUrl = null;
-
-      const msgEl = document.getElementById('message');
-      msgEl.textContent = '';
-
-      if (!name || isNaN(amount)) return;
-
-      if (file) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
+      // Load bills from Supabase
+      async function loadBills() {
+        const { data: bills, error } = await supabase
           .from('bills')
-          .upload(fileName, file);
-        if (uploadError) {
-          msgEl.textContent = 'Upload error: ' + uploadError.message;
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        const container = document.getElementById('bills-container');
+        const totalEl = document.getElementById('total');
+
+        if (error) {
+          container.innerHTML = '<p>Error loading bills.</p>';
           return;
         }
-        const { data } = supabase.storage.from('bills').getPublicUrl(fileName);
-        imageUrl = data.publicUrl;
+
+        if (!bills || bills.length === 0) {
+          container.innerHTML = '<p>No bills yet.</p>';
+          totalEl.textContent = 'Total: $0.00';
+          return;
+        }
+
+        let total = 0;
+        container.innerHTML = bills.map(bill => {
+          const amount = parseFloat(bill.amount);
+          total += amount;
+          return `
+            <div class="bill">
+              <div>
+                <strong>${escapeHtml(bill.name)}</strong><br>
+                $${amount.toFixed(2)}
+                ${bill.image_url ? `<br><a href="${bill.image_url}" target="_blank">Attachment</a>` : ''}
+              </div>
+              <button class="delete-btn" data-id="${bill.id}" style="background:red; color:white; border:none; padding:0.3rem 0.6rem; cursor:pointer; width:auto;">Delete</button>
+            </div>
+          `;
+        }).join('');
+
+        totalEl.textContent = `Total: $${total.toFixed(2)}`;
+
+        // Attach delete listeners after rendering
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-id');
+            if (confirm('Delete this bill?')) {
+              await supabase.from('bills').delete().eq('id', id);
+              loadBills();
+            }
+          });
+        });
       }
 
-      const { error } = await supabase.from('bills').insert({ name, amount, image_url: imageUrl });
-      if (error) {
-        msgEl.textContent = 'Insert error: ' + error.message;
-      } else {
-        document.getElementById('name').value = '';
-        document.getElementById('amount').value = '';
-        fileInput.value = '';
-        loadBills();
+      // Logout function
+      async function logout() {
+        await supabase.auth.signOut();
+        // Reload page – will show login form again
+        window.location.reload();
       }
-    });
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // Inicijalizacija
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        showLogin();
-      } else {
-        loadBills();
+      // Login form (shown when not authenticated)
+      function showLogin() {
+        document.body.innerHTML = `
+          <div style="max-width:400px; margin:2rem auto;">
+            <h1>Admin Login</h1>
+            <form id="login-form">
+              <input type="email" id="email" placeholder="Email" required>
+              <input type="password" id="password" placeholder="Password" required>
+              <button type="submit">Sign In</button>
+            </form>
+            <p id="error" style="color:red;"></p>
+          </div>
+        `;
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const email = document.getElementById('email').value;
+          const password = document.getElementById('password').value;
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) {
+            document.getElementById('error').textContent = error.message;
+          } else {
+            window.location.reload();
+          }
+        });
       }
+
+      // Add bill form handler
+      document.getElementById('add-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('name').value.trim();
+        const amount = parseFloat(document.getElementById('amount').value);
+        const fileInput = document.getElementById('file');
+        const file = fileInput.files[0];
+        let imageUrl = null;
+
+        const msgEl = document.getElementById('message');
+        msgEl.textContent = '';
+
+        if (!name || isNaN(amount)) return;
+
+        if (file) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('bills')
+            .upload(fileName, file);
+          if (uploadError) {
+            msgEl.textContent = 'Upload error: ' + uploadError.message;
+            return;
+          }
+          const { data } = supabase.storage.from('bills').getPublicUrl(fileName);
+          imageUrl = data.publicUrl;
+        }
+
+        const { error } = await supabase.from('bills').insert({ name, amount, image_url: imageUrl });
+        if (error) {
+          msgEl.textContent = 'Insert error: ' + error.message;
+        } else {
+          document.getElementById('name').value = '';
+          document.getElementById('amount').value = '';
+          fileInput.value = '';
+          loadBills();
+        }
+      });
+
+      // Logout button
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+
+      // Initialization: check auth and show login or main panel
+      (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          showLogin();
+        } else {
+          loadBills();
+        }
+      })();
     })();
   </script>
 </body>
