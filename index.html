@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bill Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    .bill { border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .total { font-size: 1.5rem; font-weight: bold; text-align: right; margin-top: 1rem; }
+    a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Bill Tracker</h1>
+  <div id="bills-container">Loading...</div>
+  <div class="total" id="total">Total: $0.00</div>
+
+  <script>
+    const SUPABASE_URL = 'https://msxcopwzxiogblrowxlf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_PklVkBCMvIIUU1GA6vhGAw__QchugHT';
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function loadBills() {
+      const { data: bills, error } = await supabase
+        .from('bills')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const container = document.getElementById('bills-container');
+      const totalEl = document.getElementById('total');
+
+      if (error) {
+        container.innerHTML = '<p>Error loading bills.</p>';
+        return;
+      }
+
+      if (!bills || bills.length === 0) {
+        container.innerHTML = '<p>No bills yet.</p>';
+        totalEl.textContent = 'Total: $0.00';
+        return;
+      }
+
+      let total = 0;
+      container.innerHTML = bills.map(bill => {
+        const amount = parseFloat(bill.amount);
+        total += amount;
+        return `
+          <div class="bill">
+            <div>
+              <strong>${escapeHtml(bill.name)}</strong><br>
+              $${amount.toFixed(2)}
+              ${bill.image_url ? `<br><a href="${bill.image_url}" target="_blank">View attachment</a>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      totalEl.textContent = `Total: $${total.toFixed(2)}`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    loadBills();
+  </script>
+</body>
+</html>
