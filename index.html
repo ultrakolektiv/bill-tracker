@@ -15,7 +15,7 @@
 <body>
   <h1>Bill Tracker</h1>
   <div id="bills-container">Loading...</div>
-  <div class="total" id="total">Total: $0.00</div>
+  <div class="total" id="total">Total: 0.00 BAM</div>
 
   <script>
     (function() {
@@ -46,7 +46,7 @@
 
         if (!bills || bills.length === 0) {
           container.innerHTML = '<p>No bills yet.</p>';
-          totalEl.textContent = 'Total: $0.00';
+          totalEl.textContent = 'Total: 0.00 BAM';
           return;
         }
 
@@ -57,18 +57,17 @@
           return `
             <div class="bill">
               <div>
-                <strong>${escapeHtml(bill.name)}</strong><br>
-                $${amount.toFixed(2)}
+                <strong>${escapeHtml(bill.name)}</strong> (${escapeHtml(bill.month || '')})<br>
+                ${amount.toFixed(2)} BAM
                 ${bill.image_url ? `<br><a href="${bill.image_url}" target="_blank">View attachment</a>` : ''}
               </div>
             </div>
           `;
         }).join('');
 
-        totalEl.textContent = `Total: $${total.toFixed(2)}`;
+        totalEl.textContent = `Total: ${total.toFixed(2)} BAM`;
       }
 
-      // Start loading
       loadBills();
     })();
   </script>
