@@ -18,56 +18,59 @@
   <div class="total" id="total">Total: $0.00</div>
 
   <script>
-    const SUPABASE_URL = 'https://msxcopwzxiogblrowxlf.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_PklVkBCMvIIUU1GA6vhGAw__QchugHT';
+    (function() {
+      const SUPABASE_URL = 'https://msxcopwzxiogblrowxlf.supabase.co';
+      const SUPABASE_ANON_KEY = 'sb_publishable_PklVkBCMvIIUU1GA6vhGAw__QchugHT';
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    async function loadBills() {
-      const { data: bills, error } = await supabase
-        .from('bills')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      const container = document.getElementById('bills-container');
-      const totalEl = document.getElementById('total');
-
-      if (error) {
-        container.innerHTML = '<p>Error loading bills.</p>';
-        return;
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
       }
 
-      if (!bills || bills.length === 0) {
-        container.innerHTML = '<p>No bills yet.</p>';
-        totalEl.textContent = 'Total: $0.00';
-        return;
-      }
+      async function loadBills() {
+        const { data: bills, error } = await supabase
+          .from('bills')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      let total = 0;
-      container.innerHTML = bills.map(bill => {
-        const amount = parseFloat(bill.amount);
-        total += amount;
-        return `
-          <div class="bill">
-            <div>
-              <strong>${escapeHtml(bill.name)}</strong><br>
-              $${amount.toFixed(2)}
-              ${bill.image_url ? `<br><a href="${bill.image_url}" target="_blank">View attachment</a>` : ''}
+        const container = document.getElementById('bills-container');
+        const totalEl = document.getElementById('total');
+
+        if (error) {
+          container.innerHTML = '<p>Error loading bills.</p>';
+          return;
+        }
+
+        if (!bills || bills.length === 0) {
+          container.innerHTML = '<p>No bills yet.</p>';
+          totalEl.textContent = 'Total: $0.00';
+          return;
+        }
+
+        let total = 0;
+        container.innerHTML = bills.map(bill => {
+          const amount = parseFloat(bill.amount);
+          total += amount;
+          return `
+            <div class="bill">
+              <div>
+                <strong>${escapeHtml(bill.name)}</strong><br>
+                $${amount.toFixed(2)}
+                ${bill.image_url ? `<br><a href="${bill.image_url}" target="_blank">View attachment</a>` : ''}
+              </div>
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
 
-      totalEl.textContent = `Total: $${total.toFixed(2)}`;
-    }
+        totalEl.textContent = `Total: $${total.toFixed(2)}`;
+      }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    loadBills();
+      // Start loading
+      loadBills();
+    })();
   </script>
 </body>
 </html>
